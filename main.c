@@ -13,6 +13,7 @@ void func(int sockfd)
 {
     char buff[MAX];
     char mybyf[MAX];
+    int sumbit;
     int n;
     for (;;) {
         bzero(buff, sizeof(buff));
@@ -33,12 +34,16 @@ void func(int sockfd)
                 read(sockfd, buff, MAX);
                 printf("%s \n", buff);
                 for (int i = 0; i < strlen(buff); i++) {
-
                     if(buff[i] == 'e') {
                         sum += atoi(val);
                         count++;
                         memset(val, 0, sizeof(buff));
-                        printf("%d \n",  sum / count);
+                        char buf[MAX];
+                        sprintf(buf, "%d", sum / count);
+                        write(sockfd, buf, sizeof(buf));
+                        write(sockfd, "exit", sizeof("exit"));
+                        sprintf(buf, "%d", sumbit / 1024);
+                        write(sockfd, buf, sizeof(buf));
                         return;
                     }
                     if (buff[i] == ' ') {
@@ -49,10 +54,14 @@ void func(int sockfd)
                         sum += atoi(val);
                         count++;
                         memset(val, 0, sizeof(buff));
-                        printf("%d \n", sum / count);
+                        char buf[MAX];
+                        sumbit++;
+                        sprintf(buf, "%d", sum / count);
+                        write(sockfd, buf, sizeof(buf));
                         sum = 0;
                         count = 0;
                     } else if (buff[i] != '\t'){
+                        sumbit++;
                         sprintf(val, "%s%c", val, buff[i]);
                     }
                 }
