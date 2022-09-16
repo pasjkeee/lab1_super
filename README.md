@@ -39,3 +39,8 @@ int res = (dataInMb * 1024) / sqrt(3*dataInMb);
 Если не пробел не \n и не \t => формируем строку числа
 
 Если e => уонец приема
+
+### График времени выполнения
+![image](https://user-images.githubusercontent.com/72603507/190681127-ba8bbeea-d01a-4ccb-bc7b-d0687b1564bc.png)
+
+
