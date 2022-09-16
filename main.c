@@ -82,30 +82,6 @@ int main() {
     char * line = NULL;
     size_t len = 0;
 
-//    while ((read = getline(&line, &len, f)) != -1) {
-//        char *val = malloc(len);
-//        for (int i = 0; i < strlen(line); i++) {
-//            if (line[i] == ' ' || line[i] == '\n' || line[i] == '\r' ) {
-//                sum += atoi(val);
-//                count++;
-//                memset(val, 0, len);
-//
-//                continue;
-//            }
-//
-//            sprintf(val, "%s%c", val, line[i]);
-//        }
-//        sum += atoi(val);
-//        count++;
-//        memset(val, 0, len);
-//
-//        printf("%d \n", sum / count);
-//
-//        sum =0;
-//        count=0;
-//
-//    }
-
     int sockfd, connfd;
     struct sockaddr_in servaddr, cli;
 
