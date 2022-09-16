@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <time.h>
+#include <math.h>
 #define MAX 80
 #define PORT 8080
 #define SA struct sockaddr
@@ -29,6 +31,16 @@ void func(int connfd)
 {
     char buff[MAX];
     int n;
+    double elapsed;
+    time_t start, end;
+
+    FILE *fres;
+    fres = fopen("/Users/19231279/CLionProjects/untitled/res.txt","w+");
+    if(!fres) {
+        printf("Error open matrix.txt\n");
+        return;
+    }
+
     // infinite loop for chat
     for (;;) {
         bzero(buff, MAX);
@@ -36,16 +48,32 @@ void func(int connfd)
         // read the message from client and copy it in buffer
         read(connfd, buff, sizeof(buff));
 
-        printf("buffer on server: %s \n", buff);
+        if (strcmp(buff, "") != 0) {
+
+            if (strcmp(buff, "exit") == 0) {
+                end = clock();
+                float diff = ((float)(end - start) / 1000000.0F ) * 1000;
+                fprintf(fres, "Время выполнения %f",diff);
+                read(connfd, buff, sizeof(buff));
+                fprintf(fres, "Размер буффера %s",buff);
+                fclose(fres);
+            } else {
+                fprintf(fres, "%s \n", buff);
+            }
+        }
 
         if ((strncmp(buff, "start", 5)) == 0) {
-            printf("entered \n");
             FILE *f;
+
             f = fopen("/Users/19231279/CLionProjects/untitled/matrix.txt","r");
             if(!f) {
                 printf("Error open matrix.txt\n");
                 continue;
             }
+
+            printf("entered \n");
+            start = clock();
+
             int sum = 0;
             int count = 0;
 
@@ -60,14 +88,7 @@ void func(int connfd)
         }
 
         bzero(buff, MAX);
-        n = 0;
-        // copy server message in the buffer
-        while ((buff[n++] = getchar()) != '\n');
 
-        // and send that buffer to client
-        write(connfd, buff, sizeof(buff));
-
-        // if msg contains "Exit" then server exit and chat ended.
         if (strncmp("exit", buff, 4) == 0) {
             printf("Server Exit...\n");
             break;
@@ -78,6 +99,31 @@ void func(int connfd)
 // Driver function
 int main()
 {
+    FILE *f;
+    f = fopen("/Users/19231279/CLionProjects/untitled/matrix.txt","w+b");
+    if(!f) {
+        printf("Error open matrix.txt\n");
+        return -1;
+    }
+
+    int dataInMb;
+    scanf("%d", &dataInMb);
+    int res = (dataInMb * 1024) / sqrt(3*dataInMb);
+
+    for (int i=0; i<res;i++) {
+        for (int j=0; j<res;j++) {
+            if(j == res - 1) {
+                fprintf(f, "%d",rand()%100);
+            } else {
+                fprintf(f, "%d ",rand()%100);
+            }
+
+        }
+        fprintf(f, "\n");
+    }
+
+    fclose(f);
+
     int sockfd, connfd;
     socklen_t len;
     struct sockaddr_in servaddr, cli;
