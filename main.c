@@ -5,63 +5,98 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 #define MAX 80
 #define PORT 8080
 #define SA struct sockaddr
+
 void func(int sockfd)
 {
     char buff[MAX];
-    char mybyf[MAX];
-    int sumbit;
     int n;
     for (;;) {
         bzero(buff, sizeof(buff));
         printf("Enter the string from client: ");
         n = 0;
-        while ((buff[n++] = getchar()) != '\n')
-            ;
+        while ((buff[n++] = getchar()) != '\n');
         write(sockfd, buff, sizeof(buff));
         bzero(buff, sizeof(buff));
         read(sockfd, buff, MAX);
         printf("%s --- \n\n", buff);
-        int sum = 0;
-        int count = 0;
+
         if ((strncmp(buff, "start", sizeof("start"))) == 0) {
+            int submit = 0;
+            float res_time = 0;
+            int** arr;
+            int* res_arr;
+            int res_buf = 0;
+            int index_row = 0;
+            int index_col = 0;
+
             printf("Start from server reciever \n");
             char *val = malloc(sizeof(buff));
             while ((strncmp(buff, "end", sizeof("end"))) != 0) {
                 read(sockfd, buff, MAX);
-                printf("%s \n", buff);
                 for (int i = 0; i < strlen(buff); i++) {
                     if(buff[i] == 'e') {
-                        sum += atoi(val);
-                        count++;
                         memset(val, 0, sizeof(buff));
                         char buf[MAX];
-                        sprintf(buf, "%d", sum / count);
+
+                        time_t start = clock();
+                        printf("Start");
+                        for(int ii = 0; ii < res_buf; ii++) {
+                            int rowsum = 0;
+                            for(int jj =0; jj < res_buf; jj++) {
+                                rowsum += arr[ii][jj];
+                                submit++;
+                            }
+                            res_arr[ii] = rowsum / res_buf;
+                        }
+                        time_t end = clock();
+                        res_time = res_time + ((float)(end - start) / 1000000.0F ) * 1000;
+                        printf("Stop");
+
+                        for (int i = 0; i < res_buf; i++) {
+                            sprintf(buf, "%d \n", res_arr[i]);
+                            write(sockfd, buf, sizeof(buf));
+                        }
+
+                        sprintf(buf, "%d", submit / 1024);
+                        write(sockfd, buf, sizeof(buf));
+                        sprintf(buf, "%f", res_time);
                         write(sockfd, buf, sizeof(buf));
                         write(sockfd, "exit", sizeof("exit"));
-                        sprintf(buf, "%d", sumbit / 1024);
-                        write(sockfd, buf, sizeof(buf));
+                        printf("Результирующий буффер размер %d \n", res_buf);
+
+                        printf("%d %d %d %d", arr[0][0], arr[1][1],arr[2][2],arr[3][3]);
                         return;
                     }
+
                     if (buff[i] == ' ') {
-                        sum += atoi(val);
-                        count++;
+                        arr[index_row][index_col] = atoi(val);
                         memset(val, 0, sizeof(buff));
+                        index_col++;
                     } else if (buff[i] == '\n') {
-                        sum += atoi(val);
-                        count++;
+
+                        if (res_buf == 0) {
+                            res_buf = atoi(val);
+                            printf("результ буффер %d \n", res_buf);
+                            res_arr = (int*) malloc(res_buf * sizeof(int));
+                            arr = (int**) malloc(res_buf * sizeof(int*));
+                            for (int j = 0; j < res_buf; j++) {
+                                arr[j] = (int*) malloc(res_buf * sizeof(int));
+                            }
+                            memset(val, 0, sizeof(buff));
+                            continue;
+                        }
+
+                        arr[index_row][index_col] = atoi(val);
+
                         memset(val, 0, sizeof(buff));
-                        char buf[MAX];
-                        sumbit++;
-                        sprintf(buf, "%d", sum / count);
-                        write(sockfd, buf, sizeof(buf));
-                        sum = 0;
-                        count = 0;
+                        index_row++;
+                        index_col = 0;
                     } else if (buff[i] != '\t'){
-                        sumbit++;
                         sprintf(val, "%s%c", val, buff[i]);
                     }
                 }
@@ -86,12 +121,7 @@ int main() {
         return -1;
     }
 
-
-    ssize_t read;
-    char * line = NULL;
-    size_t len = 0;
-
-    int sockfd, connfd;
+    int sockfd;
     struct sockaddr_in servaddr, cli;
 
     // socket create and verification
