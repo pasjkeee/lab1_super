@@ -76,17 +76,13 @@ void func(int connfd, int num_of_rows)
         if (strcmp(buff, "") != 0) {
 
             if (strncmp("exit", buff, 4) == 0) {
+                fclose(fres);
                 printf("Server Exit...\n");
                 break;
             }
 
             if ((strncmp(buff, "start", 5)) == 0) {
                 handle_send_file(connfd, num_of_rows);
-                continue;
-            }
-
-            if (strcmp(buff, "exit") == 0) {
-                fclose(fres);
                 continue;
             }
 
