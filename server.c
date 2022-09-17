@@ -27,11 +27,9 @@ void send_file(FILE *fp, int sockfd){
     }
 }
 
-void func(int connfd)
+void func(int connfd, int num_of_rows)
 {
     char buff[MAX];
-    int n;
-    double elapsed;
     time_t start, end;
 
     FILE *fres;
@@ -55,6 +53,7 @@ void func(int connfd)
                 float diff = ((float)(end - start) / 1000000.0F ) * 1000;
                 fprintf(fres, "Время выполнения %f",diff);
                 read(connfd, buff, sizeof(buff));
+                printf("Буффер %s", buff);
                 fprintf(fres, "Размер буффера %s",buff);
                 fclose(fres);
             } else {
@@ -73,14 +72,13 @@ void func(int connfd)
 
             printf("entered \n");
             start = clock();
-
-            int sum = 0;
-            int count = 0;
-
-            ssize_t read;
-            char * line = NULL;
-            size_t len = 0;
+            
             write(connfd, "start", sizeof("start"));
+
+            char resBuf[80];
+            sprintf(resBuf, "%d\n", num_of_rows);
+            printf("%s\n", resBuf);
+            write(connfd, resBuf, sizeof(resBuf));
             send_file(f, connfd);
             write(connfd, "end", sizeof("end"));
             printf("\n exit \n");
@@ -105,6 +103,9 @@ int main()
         printf("Error open matrix.txt\n");
         return -1;
     }
+
+    printf("%lu",
+           CLOCKS_PER_SEC);
 
     int dataInMb;
     scanf("%d", &dataInMb);
@@ -170,7 +171,7 @@ int main()
         printf("server accept the client...\n");
 
     // Function for chatting between client and server
-    func(connfd);
+    func(connfd, res);
 
     // After chatting close the socket
     close(sockfd);
