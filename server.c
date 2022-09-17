@@ -1,177 +1,209 @@
 #include <stdio.h>
-#include <netdb.h>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <time.h>
 #include <math.h>
-#define MAX 80
+#define MAX_SOCKET_DATA_BATCH 1000
 #define PORT 8080
+#define MATRIX_PATH "/Users/19231279/CLionProjects/untitled/matrix.txt"
+#define RES_PATH "/Users/19231279/CLionProjects/untitled/res.txt"
+#define MB_TO_KB 10
 #define SA struct sockaddr
 
-// Function designed for chat between client and server.
+FILE* get_fd(char * path, char * mode) {
+    FILE *f;
+    f = fopen(path,mode);
+    if(!f) {
+        printf("ERROR: Error open %s in mode %s \n", path, mode);
+        return f;
+    }
+    printf("INFO: File %s in mode %s successfully opened\n", path, mode);
+    return f;
+}
 
 void send_file(FILE *fp, int sockfd){
-    int n;
-    char data[80] = {0};
+    char data[MAX_SOCKET_DATA_BATCH] = {0};
 
-    while(fgets(data, 80, fp) != NULL) {
+    while(fgets(data, MAX_SOCKET_DATA_BATCH, fp) != NULL) {
         if (send(sockfd, data, sizeof(data), 0) == -1) {
             perror("[-]Error in sending file.");
             exit(1);
         }
-        bzero(data, 80);
+        bzero(data, MAX_SOCKET_DATA_BATCH);
     }
+}
+
+char* conver_digit_into_char(int digit) {
+    char* str = malloc(MAX_SOCKET_DATA_BATCH * sizeof(char));
+    sprintf(str, "%d\n", digit);
+    return str;
+}
+
+void handle_send_file(int connfd, int num_of_rows) {
+    FILE *f = get_fd(MATRIX_PATH,"r");
+    printf("INFO: Start sending info \n");
+
+    write(connfd, "start", sizeof("start"));
+
+    char* resBuf = conver_digit_into_char(num_of_rows);
+    printf("INFO: Sending number of rows %s\n", resBuf);
+    write(connfd, resBuf, sizeof(resBuf));
+
+    printf("INFO: Sending file \n");
+    send_file(f, connfd);
+
+    write(connfd, "end", sizeof("end"));
+    printf("INFO: End of sending file \n");
 }
 
 void func(int connfd, int num_of_rows)
 {
-    char buff[MAX];
-    time_t start, end;
+    char buff[MAX_SOCKET_DATA_BATCH];
 
     FILE *fres;
-    fres = fopen("/Users/19231279/CLionProjects/untitled/res.txt","w+");
-    if(!fres) {
-        printf("Error open matrix.txt\n");
-        return;
-    }
+    fres = get_fd(RES_PATH, "w+");
 
     // infinite loop for chat
     for (;;) {
-        bzero(buff, MAX);
 
+        bzero(buff, MAX_SOCKET_DATA_BATCH);
         // read the message from client and copy it in buffer
         read(connfd, buff, sizeof(buff));
 
         if (strcmp(buff, "") != 0) {
 
-            if (strcmp(buff, "exit") == 0) {
-                end = clock();
-                float diff = ((float)(end - start) / 1000000.0F ) * 1000;
-                fprintf(fres, "Время выполнения %f",diff);
-                read(connfd, buff, sizeof(buff));
-                printf("Буффер %s", buff);
-                fprintf(fres, "Размер буффера %s",buff);
-                fclose(fres);
-            } else {
-                fprintf(fres, "%s \n", buff);
+            if (strncmp("exit", buff, 4) == 0) {
+                printf("Server Exit...\n");
+                break;
             }
-        }
 
-        if ((strncmp(buff, "start", 5)) == 0) {
-            FILE *f;
-
-            f = fopen("/Users/19231279/CLionProjects/untitled/matrix.txt","r");
-            if(!f) {
-                printf("Error open matrix.txt\n");
+            if ((strncmp(buff, "start", 5)) == 0) {
+                handle_send_file(connfd, num_of_rows);
                 continue;
             }
 
-            printf("entered \n");
-            start = clock();
-            
-            write(connfd, "start", sizeof("start"));
+            if (strcmp(buff, "exit") == 0) {
+                fclose(fres);
+                continue;
+            }
 
-            char resBuf[80];
-            sprintf(resBuf, "%d\n", num_of_rows);
-            printf("%s\n", resBuf);
-            write(connfd, resBuf, sizeof(resBuf));
-            send_file(f, connfd);
-            write(connfd, "end", sizeof("end"));
-            printf("\n exit \n");
-            continue;
-        }
-
-        bzero(buff, MAX);
-
-        if (strncmp("exit", buff, 4) == 0) {
-            printf("Server Exit...\n");
-            break;
+            fprintf(fres, "%s \n", buff);
         }
     }
+}
+
+int convert_mb_to_num_of_rows(int dataInMb) {
+    return (dataInMb * MB_TO_KB) / sqrt(3*dataInMb);
+};
+
+int print_rand_numbers_into_file(FILE *f, int num_of_rows) {
+    for (int i = 0; i < num_of_rows;i++) {
+        for (int j = 0; j < num_of_rows - 1; j++) {
+                fprintf(f, "%d ", rand()%100);
+        }
+        fprintf(f, "%d", rand()%100);
+        fprintf(f, "\n");
+    }
+    printf("INFO: Data successfully generated\n");
+
+    return 0;
+}
+
+int generate_data() {
+    int dataInMb;
+    FILE *f;
+
+    f = get_fd(MATRIX_PATH,"w+b");
+
+    printf("Enter amount of data in MB\n");
+    scanf("%d", &dataInMb);
+
+    int res = convert_mb_to_num_of_rows(dataInMb);
+    print_rand_numbers_into_file(f, res);
+
+    fclose(f);
+
+    return res;
+}
+
+// socket create and verification
+int create_and_verify_socket() {
+    int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock_fd == -1) {
+        printf("ERROR: Socket creation failed...\n");
+        exit(0);
+    }
+    printf("INFO: Socket successfully created..\n");
+    return sock_fd;
+}
+
+// assign IP, PORT
+int configure_serv_addr(struct sockaddr_in * serv_addr, int sockfd) {
+    bzero(serv_addr, sizeof(*serv_addr));
+
+    serv_addr->sin_family = AF_INET;
+    serv_addr->sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_addr->sin_port = htons(PORT);
+
+    // Binding newly created socket to given IP and verification
+    if ((bind(sockfd, (SA*)serv_addr, sizeof(*serv_addr))) != 0) {
+        printf("ERROR: Socket bind failed...\n");
+        exit(0);
+    }
+    else
+        printf("INFO: Socket successfully binded..\n");
+
+    return sockfd;
+}
+
+// Now server is ready to listen and verification
+int socket_start_listen(int sockfd) {
+    if ((listen(sockfd, 5)) != 0) {
+        printf("ERROR: Listen failed...\n");
+        exit(0);
+    }
+    else
+        printf("INFO: Server listening..\n");
+
+    return 0;
+}
+
+// Accept the data packet from client and verification
+int get_server_accept(int sockfd, struct sockaddr_in * cli) {
+    socklen_t len = sizeof(*cli);
+    int connfd = accept(sockfd, (SA*)cli, &len);
+
+    if (connfd < 0) {
+        printf("ERROR: Server accept failed...\n");
+        exit(0);
+    }
+    else
+        printf("INFO: Server accept the client...\n");
+    return connfd;
 }
 
 // Driver function
 int main()
 {
-    FILE *f;
-    f = fopen("/Users/19231279/CLionProjects/untitled/matrix.txt","w+b");
-    if(!f) {
-        printf("Error open matrix.txt\n");
-        return -1;
-    }
-
-    printf("%lu",
-           CLOCKS_PER_SEC);
-
-    int dataInMb;
-    scanf("%d", &dataInMb);
-    int res = (dataInMb * 1024) / sqrt(3*dataInMb);
-
-    for (int i=0; i<res;i++) {
-        for (int j=0; j<res;j++) {
-            if(j == res - 1) {
-                fprintf(f, "%d",rand()%100);
-            } else {
-                fprintf(f, "%d ",rand()%100);
-            }
-
-        }
-        fprintf(f, "\n");
-    }
-
-    fclose(f);
-
+    int num_of_rows = generate_data();
     int sockfd, connfd;
-    socklen_t len;
-    struct sockaddr_in servaddr, cli;
+    struct sockaddr_in serv_addr, cli;
 
-    // socket create and verification
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        printf("socket creation failed...\n");
-        exit(0);
+    if (num_of_rows == -1) {
+        printf("ERROR: Trouble with data generation");
     }
-    else
-        printf("Socket successfully created..\n");
-    bzero(&servaddr, sizeof(servaddr));
 
-    // assign IP, PORT
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(PORT);
+    sockfd = create_and_verify_socket();
+    configure_serv_addr(&serv_addr, sockfd);
+    socket_start_listen(sockfd);
 
-    // Binding newly created socket to given IP and verification
-    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
-        printf("socket bind failed...\n");
-        exit(0);
-    }
-    else
-        printf("Socket successfully binded..\n");
+    connfd = get_server_accept(sockfd, &cli);
 
-    // Now server is ready to listen and verification
-    if ((listen(sockfd, 5)) != 0) {
-        printf("Listen failed...\n");
-        exit(0);
-    }
-    else
-        printf("Server listening..\n");
-    len = sizeof(cli);
-
-    // Accept the data packet from client and verification
-    connfd = accept(sockfd, (SA*)&cli, &len);
-    if (connfd < 0) {
-        printf("server accept failed...\n");
-        exit(0);
-    }
-    else
-        printf("server accept the client...\n");
-
-    // Function for chatting between client and server
-    func(connfd, res);
+    //main func
+    func(connfd, num_of_rows);
 
     // After chatting close the socket
     close(sockfd);
