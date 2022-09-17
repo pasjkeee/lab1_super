@@ -77,7 +77,7 @@ void func(int connfd, int num_of_rows)
 
             if (strncmp("exit", buff, 4) == 0) {
                 fclose(fres);
-                printf("Server Exit...\n");
+                printf("INFO: Server Exit...\n");
                 break;
             }
 
